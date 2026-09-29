@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --color-navy-950: #0b1220;
+  --color-navy-900: #121a2b;
+  --color-navy-800: #1a2438;
+  --color-navy-700: #243049;
+  --color-accent: #c5a46e;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  @apply bg-slate-100 text-slate-900 antialiased;
+}

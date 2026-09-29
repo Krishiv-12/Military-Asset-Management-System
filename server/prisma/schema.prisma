@@ -1,0 +1,238 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  BASE_COMMANDER
+  LOGISTICS_OFFICER
+}
+
+enum MovementType {
+  PURCHASE
+  TRANSFER_IN
+  TRANSFER_OUT
+  ASSIGNMENT
+  EXPENDITURE
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role
+  baseId       String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  base          Base?          @relation(fields: [baseId], references: [id])
+  purchases     Purchase[]
+  transfers     Transfer[]
+  assignments   Assignment[]
+  expenditures  Expenditure[]
+  auditLogs     AuditLog[]
+
+  @@index([role])
+  @@index([baseId])
+  @@map("users")
+}
+
+model Base {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   @unique
+  location  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users                 User[]
+  inventory             Inventory[]
+  purchases             Purchase[]
+  outgoingTransfers     Transfer[]     @relation("TransferSource")
+  incomingTransfers     Transfer[]     @relation("TransferDestination")
+  assignments           Assignment[]
+  expenditures          Expenditure[]
+  inventoryMovements    InventoryMovement[]
+  auditLogs             AuditLog[]
+
+  @@map("bases")
+}
+
+model EquipmentType {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  category    String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  inventory          Inventory[]
+  purchases          Purchase[]
+  transferItems      TransferItem[]
+  assignments        Assignment[]
+  expenditures       Expenditure[]
+  inventoryMovements InventoryMovement[]
+
+  @@index([category])
+  @@map("equipment_types")
+}
+
+model Inventory {
+  id              String   @id @default(uuid())
+  baseId          String
+  equipmentTypeId String
+  quantity        Int      @default(0)
+  updatedAt       DateTime @updatedAt
+
+  base          Base          @relation(fields: [baseId], references: [id])
+  equipmentType EquipmentType @relation(fields: [equipmentTypeId], references: [id])
+
+  @@unique([baseId, equipmentTypeId])
+  @@index([baseId])
+  @@index([equipmentTypeId])
+  @@map("inventory")
+}
+
+model Purchase {
+  id              String   @id @default(uuid())
+  baseId          String
+  equipmentTypeId String
+  quantity        Int
+  purchaseDate    DateTime
+  notes           String?
+  createdById     String
+  createdAt       DateTime @default(now())
+
+  base          Base          @relation(fields: [baseId], references: [id])
+  equipmentType EquipmentType @relation(fields: [equipmentTypeId], references: [id])
+  createdBy     User          @relation(fields: [createdById], references: [id])
+
+  @@index([baseId, purchaseDate])
+  @@index([equipmentTypeId])
+  @@index([purchaseDate])
+  @@map("purchases")
+}
+
+model Transfer {
+  id                String   @id @default(uuid())
+  sourceBaseId      String
+  destinationBaseId String
+  transferDate      DateTime
+  notes             String?
+  createdById       String
+  createdAt         DateTime @default(now())
+
+  sourceBase      Base           @relation("TransferSource", fields: [sourceBaseId], references: [id])
+  destinationBase Base           @relation("TransferDestination", fields: [destinationBaseId], references: [id])
+  createdBy       User           @relation(fields: [createdById], references: [id])
+  items           TransferItem[]
+
+  @@index([sourceBaseId, transferDate])
+  @@index([destinationBaseId, transferDate])
+  @@index([transferDate])
+  @@map("transfers")
+}
+
+model TransferItem {
+  id              String @id @default(uuid())
+  transferId      String
+  equipmentTypeId String
+  quantity        Int
+
+  transfer      Transfer      @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  equipmentType EquipmentType @relation(fields: [equipmentTypeId], references: [id])
+
+  @@index([transferId])
+  @@index([equipmentTypeId])
+  @@map("transfer_items")
+}
+
+model Assignment {
+  id              String   @id @default(uuid())
+  baseId          String
+  equipmentTypeId String
+  quantity        Int
+  personnelName   String
+  personnelId     String
+  assignedAt      DateTime
+  notes           String?
+  createdById     String
+  createdAt       DateTime @default(now())
+
+  base          Base          @relation(fields: [baseId], references: [id])
+  equipmentType EquipmentType @relation(fields: [equipmentTypeId], references: [id])
+  createdBy     User          @relation(fields: [createdById], references: [id])
+
+  @@index([baseId, assignedAt])
+  @@index([equipmentTypeId])
+  @@index([assignedAt])
+  @@map("assignments")
+}
+
+model Expenditure {
+  id              String   @id @default(uuid())
+  baseId          String
+  equipmentTypeId String
+  quantity        Int
+  reason          String
+  expendedAt      DateTime
+  createdById     String
+  createdAt       DateTime @default(now())
+
+  base          Base          @relation(fields: [baseId], references: [id])
+  equipmentType EquipmentType @relation(fields: [equipmentTypeId], references: [id])
+  createdBy     User          @relation(fields: [createdById], references: [id])
+
+  @@index([baseId, expendedAt])
+  @@index([equipmentTypeId])
+  @@index([expendedAt])
+  @@map("expenditures")
+}
+
+model InventoryMovement {
+  id              String       @id @default(uuid())
+  baseId          String
+  equipmentTypeId String
+  type            MovementType
+  quantity        Int
+  occurredAt      DateTime
+  referenceType   String
+  referenceId     String
+  createdAt       DateTime     @default(now())
+
+  base          Base          @relation(fields: [baseId], references: [id])
+  equipmentType EquipmentType @relation(fields: [equipmentTypeId], references: [id])
+
+  @@index([baseId, occurredAt])
+  @@index([equipmentTypeId, occurredAt])
+  @@index([type, occurredAt])
+  @@index([referenceType, referenceId])
+  @@map("inventory_movements")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  action    String
+  entity    String
+  entityId  String
+  baseId    String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user User  @relation(fields: [userId], references: [id])
+  base Base? @relation(fields: [baseId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([entity, createdAt])
+  @@index([baseId, createdAt])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
