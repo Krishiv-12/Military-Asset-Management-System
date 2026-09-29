@@ -63,7 +63,7 @@ export function cookieOptions() {
   return {
     httpOnly: true,
     secure: env.cookieSecure || isProduction,
-    sameSite: isProduction ? "strict" : "lax",
+    sameSite: isProduction ? "none" : "lax",
     path: "/",
     maxAge: 8 * 60 * 60 * 1000,
   };
